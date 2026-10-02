@@ -1,0 +1,45 @@
+#include <windows.h>
+
+#define IDI_APP 101
+#define IDR_SHELL_HTML 301
+#define IDR_SHELL_LOGO 302
+// build: 1790094108
+
+IDI_APP ICON "app.ico"
+
+// 启动器页 (单文件发布: HTML/logo 编译进 exe, 运行时经 http://app.local 虚拟域名内存伺服)
+IDR_SHELL_HTML RCDATA "shell/index.html"
+IDR_SHELL_LOGO RCDATA "shell/logo.png"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION     0,4,0,0
+ PRODUCTVERSION  0,4,0,0
+ FILEFLAGSMASK   0x3fL
+#ifdef _DEBUG
+ FILEFLAGS       0x1L
+#else
+ FILEFLAGS       0x0L
+#endif
+ FILEOS          0x40004L
+ FILETYPE        0x1L
+ FILESUBTYPE     0x1L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName",      "AgentDock"
+            VALUE "FileDescription",  "AgentDock 便携启动器 (原生 v3)"
+            VALUE "FileVersion",      "0.4.0"
+            VALUE "InternalName",     "AgentDock"
+            VALUE "LegalCopyright",   "MIT License"
+            VALUE "OriginalFilename", "AgentDock.exe"
+            VALUE "ProductName",      "AgentDock"
+            VALUE "ProductVersion",   "0.4.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END

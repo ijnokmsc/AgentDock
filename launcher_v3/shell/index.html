@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentDock 启动器</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#0e1116; --panel:#161a22; --panel2:#1d222d; --border:#2a3140;
+  --text:#e6eaf0; --muted:#8b93a7; --accent:#35d6f0; --accent-dim:#1c6e82;
+  --green:#3fb96c; --warn:#e5a13f; --red:#e5504f;
+}
+body { font-family:"Segoe UI","Microsoft YaHei UI",system-ui,sans-serif; background:var(--bg); color:var(--text); display:flex; height:100vh; overflow:hidden; }
+
+/* ---- 侧导航 ---- */
+.side { width:186px; min-width:186px; background:#11141b; border-right:1px solid var(--border);
+        display:flex; flex-direction:column; padding:14px 0; }
+.brand { display:flex; align-items:center; gap:10px; padding:0 16px 16px; border-bottom:1px solid var(--border); }
+.logo { width:38px; height:38px; border-radius:10px; background:#142a33; border:1px solid var(--accent-dim);
+        display:flex; align-items:center; justify-content:center; }
+.logo img { width:80%; height:80%; object-fit:contain; }
+.brand .t { font-size:14px; font-weight:600; }
+.brand .s { font-size:10px; color:var(--muted); }
+.nav { flex:1; overflow-y:auto; padding:10px 8px; }
+.nav-item { display:flex; align-items:center; gap:8px; padding:9px 14px; border-radius:8px;
+            color:var(--muted); cursor:pointer; font-size:13px; margin-bottom:2px; border-left:3px solid transparent; }
+.nav-item:hover { background:#171b24; color:var(--text); }
+.nav-item.active { background:#1c222d; color:var(--text); font-weight:600; border-left-color:var(--accent); }
+.nav-item .star { color:var(--accent); font-size:11px; }
+.nav-item .star.off { color:#39435a; }
+.pill.updy { color:var(--warn); cursor:pointer; }
+.pill.updok { color:var(--green); }
+.side-foot { padding:12px 16px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+
+/* ---- 主区 ---- */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar { display:flex; align-items:center; padding:12px 22px; background:#11141b; border-bottom:1px solid var(--border); }
+.topbar h1 { font-size:16px; font-weight:600; margin-right:auto; }
+.pill { padding:5px 14px; border-radius:14px; font-size:12px; background:var(--panel2); color:var(--muted); }
+.pill.running { color:var(--green); } .pill.starting { color:var(--accent); } .pill.failed { color:var(--warn); }
+.content { flex:1; overflow-y:auto; padding:20px 22px; }
+.section { display:none; } .section.active { display:block; }
+
+.card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:14px; }
+.card h3 { font-size:13px; color:var(--muted); margin-bottom:12px; }
+.row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.btn { padding:8px 16px; border-radius:6px; border:1px solid var(--border); background:var(--panel2);
+       color:var(--text); cursor:pointer; font-size:13px; }
+.btn:hover { background:#242a3d; }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:#061822; font-weight:600; }
+.btn.primary:hover { background:#6be4f8; }
+.btn.danger { color:var(--red); }
+.btn.small { padding:4px 10px; font-size:12px; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+input[type=text], input[type=number], input[type=password], select {
+  padding:7px 10px; background:var(--panel2); border:1px solid var(--border); border-radius:6px;
+  color:var(--text); font-size:13px; }
+input:focus, select:focus { outline:1px solid var(--accent-dim); }
+label.f { display:block; font-size:11px; color:var(--muted); margin:10px 0 4px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
+th { color:var(--muted); font-weight:500; font-size:12px; }
+tr.sel td { background:#1c222d; }
+.bar { height:10px; background:#222733; border-radius:5px; overflow:hidden; margin:10px 0 6px; }
+.bar>div { height:100%; background:var(--accent); border-radius:5px; width:0%; transition:width .3s; }
+.bar.g>div { background:var(--green); }
+.stage { font-size:12px; color:var(--muted); }
+.state-word { font-size:26px; font-weight:700; }
+.metric { display:inline-block; margin-right:28px; }
+.metric .k { font-size:11px; color:var(--muted); } .metric .v { font-size:16px; font-weight:600; }
+.lock { border:1px dashed var(--warn); border-radius:10px; padding:14px 18px; color:var(--warn);
+        font-size:13px; margin-bottom:14px; background:rgba(229,161,63,.06); }
+.logbox { background:#0b0e13; border:1px solid var(--border); border-radius:8px; padding:10px 12px;
+          font:12px/1.7 Consolas,monospace; height:420px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; }
+.lv-INFO{color:var(--muted);} .lv-WARN{color:var(--warn);} .lv-ERROR{color:var(--red);}
+.badge { padding:3px 10px; border-radius:12px; font-size:12px; }
+.badge.running{background:rgba(63,185,108,.15);color:var(--green);}
+.badge.starting{background:rgba(53,214,240,.15);color:var(--accent);}
+.badge.failed{background:rgba(229,161,63,.15);color:var(--warn);}
+.badge.stopped{background:rgba(139,147,167,.15);color:var(--muted);}
+.muted{color:var(--muted);font-size:12px;}
+.ok{color:var(--green);} .warn{color:var(--warn);} .red{color:var(--red);}
+a{color:var(--accent);}
+
+/* HSPP v1.3 插件快捷区滑动开关 */
+.sw{position:relative;display:inline-flex;align-items:center;gap:6px;margin:0 8px 4px 0;cursor:pointer;font-size:12px}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw .track{position:relative;width:34px;height:18px;background:#3a4354;border-radius:9px;transition:background .15s;flex:none}
+.sw .track:before{content:"";position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--text);border-radius:50%;transition:transform .15s}
+.sw input:checked + .track{background:var(--green)}
+.sw input:checked + .track:before{transform:translateX(16px)}
+</style>
+</head>
+<body>
+
+<div class="side">
+  <div class="brand">
+    <div class="logo"><img src="logo.png" alt=""></div>
+    <div><div class="t">AgentDock</div><div class="s">多 Agent 便携启动器</div></div>
+  </div>
+  <div class="nav" id="nav">
+    <div class="nav-item active" data-sec="overview">概览</div>
+    <div class="nav-item" data-sec="build">构建<span class="star">★</span></div>
+    <div class="nav-item" data-sec="update">更新<span class="star off" id="navUpdStar">★</span></div>
+    <div class="nav-item" data-sec="diag">体检</div>
+    <div class="nav-item" data-sec="prov">Provider</div>
+    <div class="nav-item" data-sec="model">模型</div>
+    <div class="nav-item" data-sec="plugin">插件</div>
+    <div class="nav-item" data-sec="settings">设置</div>
+    <div class="nav-item" data-sec="logs">日志</div>
+  </div>
+  <div class="side-foot" id="sideFoot"><span class="dot" style="background:var(--muted)"></span>Hermes 未运行</div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1 id="secTitle">概览</h1>
+    <span class="pill" id="updPill" style="display:none" title="前往更新中心"></span>
+    <span class="pill" id="phasePill">未运行</span>
+  </div>
+  <div class="content" id="contentWrap">
+
+    <!-- ================= 构建 ★ ================= -->
+    <div class="section" id="sec-build">
+      <div class="lock" id="buildLock" style="display:none">待构建模式: 构建完成后启动器将自动解锁全部功能并热初始化。</div>
+
+      <!-- Hermes Agent 构建卡片 (标题/说明来自 agent.list, ADR-009) -->
+      <div class="card" style="border-color:var(--accent-dim)" data-agent="hermes">
+        <div class="row" style="margin-bottom:10px">
+          <b style="font-size:16px;color:var(--accent)" id="agentTitle-hermes">Hermes</b>
+          <span class="muted" style="font-size:12px" id="agentNote-hermes">Agent · 从 0 构建完整便携包 —— 官方 releases 两件套 (runtime + web-ui), 首建下载约 670MB, 同版本走缓存</span>
+        </div>
+        <div class="row">
+          <span class="muted" style="width:70px">目标目录</span>
+          <input type="text" id="bTarget" style="flex:1" value=".\Hermes" placeholder=".\Hermes (相对便携包根)">
+          <label class="muted"><input type="checkbox" id="bCache" checked> 使用下载缓存</label>
+        </div>
+        <div class="muted" style="margin-top:6px">目标目录支持绝对路径或相对路径 (如 <b>.\Hermes</b>, 相对便携包根)。每个 Agent 构建到独立子目录。</div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="btnResolve">检查官方版本</button>
+          <button class="btn primary" id="btnBuild">开始构建</button>
+          <button class="btn danger" id="btnBuildCancel" disabled>取消构建</button>
+          <button class="btn" id="btnBuildStart2" style="display:none">启动 Hermes</button>
+        </div>
+        <div id="bRemote" class="muted" style="margin-top:12px">尚未检查官方版本。</div>
+        <div class="bar" style="margin-top:10px"><div id="bBar" style="width:0%"></div></div>
+        <div class="stage" id="bStage">就绪</div>
+      <div class="row" style="margin-top:10px">
+        <span class="muted">手动下载:</span>
+        <button class="btn small" id="dlRt" disabled title="先点「检查官方版本」获取地址">下载 runtime</button>
+        <button class="btn small" id="dlWu" disabled title="先点「检查官方版本」获取地址">下载 web-ui</button>
+        <button class="btn small" id="dlOpen">打开下载目录</button>
+      </div>
+      <div class="muted" style="margin-top:6px">网络不畅时可用系统浏览器下载, 按<b>原文件名</b>放入下载目录, 勾选「使用下载缓存」时构建自动跳过下载。目录: <span id="dlDir">(点「检查官方版本」或「打开下载目录」后生成)</span></div>
+      </div>
+
+      <!-- DeepSeek Harness 构建卡片 (ADR-008, 与 Hermes 互相独立; 标题/说明来自 agent.list) -->
+      <div class="card" style="border-color:var(--accent-dim)" data-agent="dsh">
+        <div class="row" style="margin-bottom:10px">
+          <b style="font-size:16px;color:var(--accent)" id="agentTitle-dsh">DeepSeek Harness</b>
+          <span class="muted" style="font-size:12px" id="agentNote-dsh">Agent · 纯 Node 便携包 (nodejs.org + npm @deepseek-ai/dsh), 首建下载约 250MB, 同版本走缓存</span>
+        </div>
+        <div class="row">
+          <span class="muted" style="width:70px">目标目录</span>
+          <input type="text" value=".\DSH" disabled style="flex:1">
+          <label class="muted"><input type="checkbox" id="bDshCache" checked> 使用下载缓存</label>
+        </div>
+        <div class="muted" style="margin-top:6px">构建内容: Node LTS + dsh 锁定版本 + Dsh.bat + 预初始化 profiles (首启零网络)。数据落在 <b>DSH\data\dsh</b> (官方 DSH_HOME)。</div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="btnDshResolve">检查版本</button>
+          <button class="btn primary" id="btnDshBuild">开始构建</button>
+          <button class="btn danger" id="btnDshBuildCancel" disabled>取消构建</button>
+        </div>
+        <div id="bDshRemote" class="muted" style="margin-top:12px">尚未检查版本 (npm registry + nodejs.org)。</div>
+        <div class="bar" style="margin-top:10px"><div id="bDshBar" style="width:0%"></div></div>
+        <div class="stage" id="bDshStage">就绪</div>
+      </div>
+    </div>
+
+    <!-- ================= 更新 ★ ================= -->
+    <div class="section" id="sec-update">
+      <div class="lock" id="updLock" style="display:none">便携包尚未构建, 暂无组件可更新。</div>
+      <div class="card">
+        <div class="row">
+          <span class="muted">更新通道</span>
+          <select id="uChannel"><option value="stable">stable</option><option value="beta">beta</option></select>
+          <button class="btn" id="btnULocal">刷新本地</button>
+          <button class="btn" id="btnURemote">检查远端</button>
+          <button class="btn" id="btnUBackups">备份列表</button>
+          <span class="muted">更新前自动停 Hermes; 每次更新自动备份, 可回滚。</span>
+        </div>
+        <table style="margin-top:12px">
+          <thead><tr><th>组件</th><th>当前版本</th><th>最新版本</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="uBody"><tr><td colspan="5" class="muted">点「刷新本地」开始。</td></tr></tbody>
+        </table>
+        <div id="uProgWrap" style="display:none">
+          <div class="bar g"><div id="uBar"></div></div>
+          <div class="stage" id="uStage"></div>
+        </div>
+      </div>
+      <div class="card" id="uBackupCard" style="display:none">
+        <h3>备份 (studio/backups) — 回滚到指定版本</h3>
+        <table><tbody id="uBackups"></tbody></table>
+      </div>
+      <!-- Node 版本选择弹层 (FLTK 版功能对齐: 从 nodejs.org 拉列表, 用户挑选版本安装) -->
+      <div id="nodeVerModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:98;">
+        <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+                    background:var(--panel); border:1px solid #2a3342; border-radius:10px;
+                    padding:20px 22px; min-width:360px;">
+          <h3 style="margin:0 0 10px">选择 Node.js 版本 <span class="muted" style="font-size:12px">(nodejs.org)</span></h3>
+          <select id="nodeVerSel" style="width:100%; padding:8px; background:var(--bg); color:var(--text);
+                                          border:1px solid #2a3342; border-radius:6px; font-size:13px;"></select>
+          <div class="row" style="margin-top:14px; justify-content:flex-end; gap:8px">
+            <button class="btn" id="nodeVerCancel">取消</button>
+            <button class="btn primary" id="nodeVerOk">安装所选版本</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 概览 ================= -->
+    <div class="section active" id="sec-overview">
+      <div class="card">
+        <h3>运行状态</h3>
+
+        <!-- Hermes 行 -->
+        <div class="row" style="margin-bottom:8px">
+          <b style="width:86px;font-size:14px">Hermes</b>
+          <span class="badge stopped" id="oBadge">未启动</span>
+          <span class="muted" id="oDetail"></span>
+        </div>
+        <div id="oMetrics" class="row"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnOStart">启动</button>
+          <button class="btn danger" id="btnOStop" disabled>停止</button>
+          <button class="btn" id="btnORestart">重启网关</button>
+          <button class="btn" id="btnOOpen">打开浏览器</button>
+          <button class="btn" id="btnORoot">打开根目录</button>
+        </div>
+
+        <div style="border-top:1px solid var(--border); margin:14px 0"></div>
+
+        <!-- DSH 行 (与 Hermes 行同构, ADR-008) -->
+        <div class="row" style="margin-bottom:8px">
+          <b style="width:86px;font-size:14px">DeepSeek Harness</b>
+          <span class="badge stopped" id="dBadge">未启动</span>
+          <span class="muted" id="dDetail"></span>
+        </div>
+        <div id="dMetrics" class="row"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnDStart">启动</button>
+          <button class="btn danger" id="btnDStop" disabled>停止</button>
+          <button class="btn" id="btnDOpen" disabled>打开浏览器</button>
+          <button class="btn" id="btnDPlugins" disabled>插件</button>
+          <button class="btn" id="btnDRestart" disabled>重启</button>
+        </div>
+
+        <div style="border-top:1px solid var(--border); margin:14px 0"></div>
+        <div class="muted" id="oEnv"></div>
+      </div>
+
+      <!-- 插件快捷卡片 (HSPP v1.3): 不进插件页即可一键操作, 控件由插件自定义声明 -->
+      <div class="card" id="quickCard" style="display:none">
+        <h3>插件快捷</h3>
+        <div id="quickBody"></div>
+        <div class="muted" id="quickResult" style="margin-top:6px;min-height:16px"></div>
+      </div>
+    </div>
+
+    <!-- ================= 体检 ================= -->
+    <div class="section" id="sec-diag">
+      <div class="lock" id="diagLock" style="display:none">便携包尚未构建。</div>
+      <div class="card">
+        <div class="row">
+          <button class="btn primary" id="btnDiag">运行体检</button>
+          <button class="btn" id="btnDiagFixAll">修复可修复项</button>
+          <span class="muted" id="diagSummary"></span>
+        </div>
+        <table style="margin-top:12px">
+          <thead><tr><th style="width:60px">结果</th><th>检查项</th><th>详情</th><th style="width:90px"></th></tr></thead>
+          <tbody id="diagBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ================= Provider ================= -->
+    <div class="section" id="sec-prov">
+      <div class="lock" id="provLock" style="display:none">便携包尚未构建。</div>
+      <div class="card">
+        <h3>模型供应商 (写入 models.json, 保存后自动渲染 .env / config.yaml)</h3>
+        <table>
+          <thead><tr><th>ID</th><th>名称</th><th>类型</th><th>Base URL</th><th>启用</th><th>操作</th></tr></thead>
+          <tbody id="pBody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 id="pFormTitle">新增 Provider</h3>
+        <div class="row">
+          <div style="flex:2"><label class="f">从预设新建 (选中自动填充)</label>
+            <select id="pPreset" style="width:100%"><option value="">— 手动填写 —</option></select></div>
+          <div style="flex:3"><label class="f">说明</label><div id="pPresetNote" class="muted" style="min-height:30px">选择厂商预设可自动填充类型 / 端点 / Key 变量名, 并提供常用模型一键添加。</div></div>
+        </div>
+        <div class="row">
+          <div><label class="f">ID (英文)</label><input type="text" id="pId"></div>
+          <div><label class="f">显示名称</label><input type="text" id="pName"></div>
+          <div><label class="f">类型</label>
+            <select id="pKind">
+              <option value="openai-compatible">openai-compatible</option>
+              <option value="openai">openai</option>
+              <option value="anthropic">anthropic</option>
+              <option value="ollama">ollama</option>
+            </select></div>
+        </div>
+        <div class="row">
+          <div style="flex:1"><label class="f">Base URL (留空用内核默认)</label><input type="text" id="pBase" style="width:100%"></div>
+          <div><label class="f">API Key 环境变量 (留空自动 &lt;ID&gt;_API_KEY)</label><input type="text" id="pEnv"></div>
+        </div>
+        <div class="row">
+          <div style="flex:1"><label class="f">API Key <span id="pKeyHint" class="muted"></span></label>
+            <div style="display:flex;gap:6px">
+              <input type="password" id="pKey" style="flex:1" placeholder="sk-..." autocomplete="off">
+              <button class="btn" id="btnKeyEye" type="button">显示</button>
+            </div>
+            <a id="pKeyUrl" href="#" target="_blank" style="display:none" class="muted">申请 API Key ↗</a>
+          </div>
+          <div id="pPresetModels" style="flex:1"></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnPSave">保存</button>
+          <button class="btn" id="btnPClear">清空表单</button>
+          <button class="btn danger" id="btnPDelete">删除选中</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 模型 ================= -->
+    <div class="section" id="sec-model">
+      <div class="lock" id="modelLock" style="display:none">便携包尚未构建。</div>
+      <div class="card">
+        <div class="row">
+          <span class="muted">筛选</span>
+          <select id="mFilter"><option value="">全部 Provider</option></select>
+          <span class="muted">模型映射: 本地 ID → 上游 ID (支持改写默认参数)</span>
+        </div>
+        <table style="margin-top:10px">
+          <thead><tr><th>ID</th><th>上游</th><th>名称</th><th>默认</th><th>参数</th><th>操作</th></tr></thead>
+          <tbody id="mBody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 id="mFormTitle">新增模型</h3>
+        <div class="row">
+          <div><label class="f">模型 ID</label><input type="text" id="mId"></div>
+          <div><label class="f">上游 ID</label><input type="text" id="mUp"></div>
+          <div><label class="f">显示名称</label><input type="text" id="mName"></div>
+          <div><label class="f">归属 Provider</label><select id="mProvider"></select></div>
+        </div>
+        <div class="row">
+          <div><label class="f">Temperature</label><input type="text" id="mTemp" style="width:90px" placeholder="可选"></div>
+          <div><label class="f">Max Tokens</label><input type="text" id="mMax" style="width:90px" placeholder="可选"></div>
+          <div><label class="f">Context Window</label><input type="text" id="mCtx" style="width:110px" placeholder="可选"></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnMSave">保存</button>
+          <button class="btn" id="btnMClear">清空表单</button>
+          <button class="btn danger" id="btnMDelete">删除选中</button>
+          <button class="btn" id="btnMDefault">设为默认</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 插件 ================= -->
+    <div class="section" id="sec-plugin">
+      <div class="card">
+        <div class="row">
+          <h3 style="margin:0">原生插件 (HSPP v1.3 协议 · 便携包根\plugin\)</h3>
+          <button class="btn small primary" id="btnPluginInstall">安装插件 (zip)…</button>
+          <button class="btn small" id="btnPluginRefresh">重新扫描</button>
+        </div>
+        <div class="muted" style="margin-top:6px">C ABI DLL + plugin.json 清单; 协议规范见 docs/PLUGIN-PROTOCOL.md。
+          <b>停用</b>=卸载 DLL (插件不运行); <b>侧边栏: 关</b>=仅隐藏左侧入口 (插件仍运行)。
+          声明了动作的插件自动出现在<b>悬浮菜单</b>和<b>概览页「插件快捷」</b>, 无需进入本页。</div>
+        <div id="pluginList"></div>
+      </div>
+
+      <!-- DeepSeek Harness 插件 (ADR-008): dsh plugin add/remove, 免命令行 -->
+      <div class="card">
+        <div class="row">
+          <h3 style="margin:0">DeepSeek Harness 插件</h3>
+          <button class="btn small" id="btnDshPluginRefresh">刷新列表</button>
+          <span class="muted">profile: web · 直接输入 npm 包名, 等效命令行 <b>dsh plugin --profile web add &lt;包名&gt;</b> (内置 pnpm, 存储钉在包内)。</span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <input type="text" id="dshPkg" placeholder="npm 包名 / github:用户/仓库 / 或粘贴整条 dsh plugin 命令" style="flex:1">
+          <button class="btn primary" id="btnDshPluginAdd">安装</button>
+        </div>
+        <div class="stage" id="dshPluginStage"></div>
+        <table style="margin-top:12px">
+          <thead><tr><th>包名</th><th style="width:140px">声明版本</th><th style="width:90px">操作</th></tr></thead>
+          <tbody id="dshPluginBody"><tr><td colspan="3" class="muted">点「刷新列表」或安装第一个插件。</td></tr></tbody>
+        </table>
+        <div class="muted" style="margin-top:8px">安装/卸载后建议点概览页 DSH 行的「重启」使其加载。数据目录: DSH\data\dsh\profiles\web</div>
+      </div>
+    </div>
+
+    <!-- ================= 设置 ================= -->
+    <div class="section" id="sec-settings">
+      <div class="card">
+        <h3>网络与代理</h3>
+        <div class="row">
+          <span class="muted" style="width:90px">代理模式</span>
+          <select id="sProxyMode">
+            <option value="0">系统代理</option><option value="1">直连</option><option value="2">手动</option>
+          </select>
+          <input type="text" id="sProxyHost" placeholder="主机, 如 127.0.0.1" style="width:150px">
+          <input type="number" id="sProxyPort" placeholder="端口, 如 7890" style="width:100px">
+          <button class="btn" id="btnProxyTest">测试代理</button>
+        </div>
+        <div class="muted" style="margin-top:8px;line-height:1.8">
+          <b>系统代理</b>: 读取 Windows IE 代理设置 (控制面板/系统代理)。<br>
+          <b>直连</b>: 不使用任何代理。<br>
+          <b>手动</b>: HTTP/HTTPS 代理, 格式 <b>主机:端口</b> (如 127.0.0.1:7890, Clash 默认 7890 / v2rayN 默认 10809); 暂不支持 SOCKS5。<br>
+          测试会通过当前配置请求多个探测端点 (npmmirror/baidu/nodejs.org), 任一成功即判可用并显示延迟。
+        </div>
+        <div class="row" style="margin-top:8px">
+          <span class="muted" style="width:90px">GitHub 镜像</span>
+          <input type="text" id="sMirror" placeholder="(可选) 加速构建下载, 如 https://mirror.ghproxy.com" style="flex:1">
+        </div>
+      </div>
+      <div class="card">
+        <h3>运行与更新</h3>
+        <div class="row" style="margin-bottom:8px">
+          <span class="muted" style="width:90px">Web UI 端口</span>
+          <input type="number" id="sPort" style="width:110px">
+          <span class="muted" style="width:90px;margin-left:20px">更新通道</span>
+          <select id="sChannel"><option value="stable">stable</option><option value="beta">beta</option></select>
+        </div>
+        <div class="row" style="margin-bottom:8px">
+          <span class="muted" style="width:90px">Hermes 根目录</span>
+          <input type="text" id="sRoot" placeholder="相对便携包根, 如 . 或 .\Hermes" style="width:260px">
+          <span class="muted" style="width:90px;margin-left:20px">保留备份</span>
+          <input type="number" id="sBackup" style="width:70px" min="1" max="10">
+          <span class="muted">份</span>
+        </div>
+        <div class="row">
+          <label class="muted"><input type="checkbox" id="sAutoCheck"> 启动时自动检查更新</label>
+          <label class="muted"><input type="checkbox" id="sLaunchOn"> 启动器启动时同时启动 Hermes</label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnSSave">保存设置</button>
+          <span class="muted">写入 studio/settings.json, 端口等下次启动生效。</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>DeepSeek Harness (DSH)</h3>
+        <div class="row" style="margin-bottom:8px">
+          <span class="muted" style="width:90px">Web UI 端口</span>
+          <input type="number" id="sDshPort" style="width:110px">
+          <label class="muted" style="margin-left:20px"><input type="checkbox" id="sDshLaunch"> 启动器启动时同时启动 DSH</label>
+        </div>
+        <div class="muted">独立于 Hermes 便携包; 数据在 .\DSH\data\dsh (官方 DSH_HOME)。端口变更对运行中的 DSH 不生效, 下次启动生效。</div>
+      </div>
+    </div>
+
+    <!-- ================= 日志 ================= -->
+    <div class="section" id="sec-logs">
+      <div class="card">
+        <div class="row">
+          <select id="lLevel">
+            <option value="all">全部级别</option><option value="info">INFO</option>
+            <option value="warn">WARN</option><option value="error">ERROR</option>
+          </select>
+          <input type="text" id="lKeyword" placeholder="关键字过滤..." style="width:220px">
+          <button class="btn" id="btnLRefresh">刷新</button>
+          <button class="btn" id="btnLExport">导出 txt</button>
+        </div>
+        <div class="logbox" id="logBox" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============ 桥 ============
+const $ = id => document.getElementById(id);
+function host(cmd, args) {
+  const msg = Object.assign({ cmd }, args || {});
+  try { window.chrome.webview.postMessage(msg); } catch (e) { console.warn('bridge unavailable', e); }
+}
+window.__hostEvent = function(e) {
+  try {
+    var d = document.getElementById('lastEvt');
+    if (d && e.type !== 'proc.state') d.textContent += ' | ' + e.type;
+    routeEvent(e);
+  } catch (err) {
+    var d2 = document.getElementById('lastEvt');
+    if (d2) d2.textContent = 'EVT-ERROR: ' + (err && err.message);
+  }
+};
+
+const S = {
+  phase: 'stopped', rootState: 'full', coreReady: true, bootSwitched: false,
+  urls: { rt: '', wu: '' },
+  settings: null, providers: [], models: [],
+  selProvider: null, selModel: null,
+  dsh: null,
+  pluginData: {},      // HSPP v1.4: pluginId -> 最近一次动作回传的 checklist (清理扫描清单)
+  cleanupSel: {},      // pluginId -> {item.id: bool} 用户勾选覆盖; 缺省 = risk 0 默认勾选
+};
+
+// ============ 导航 ============
+const titles = { build:'构建便携包 ★', update:'更新中心 ★', overview:'概览', diag:'环境体检',
+                 prov:'Provider 管理', model:'模型管理', plugin:'插件管理', settings:'设置', logs:'运行日志' };
+document.querySelectorAll('.nav-item').forEach(n => {
+  n.onclick = () => {
+    document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(x => x.classList.remove('active'));
+    n.classList.add('active');
+    $('sec-' + n.dataset.sec).classList.add('active');
+    $('secTitle').textContent = titles[n.dataset.sec];
+    onEnterSection(n.dataset.sec);
+  };
+});
+function switchTo(sec) {
+  const n = document.querySelector('.nav-item[data-sec="' + sec + '"]');
+  if (n) n.click();
+}
+function onEnterSection(sec) {
+  if (sec === 'logs') host('log.query', { level: $('lLevel').value, keyword: $('lKeyword').value });
+  if (sec === 'overview') host('proc.getState');
+  if (sec === 'plugin') host('dshplugin.list');
+}
+function applyLocks() {
+  const locked = !S.coreReady;
+  ['diagLock','provLock','modelLock','updLock'].forEach(id => $(id).style.display = locked ? '' : 'none');
+  $('buildLock').style.display = S.rootState === 'pendingBuild' ? '' : 'none';
+}
+
+// ============ 状态渲染 (两行统一: Hermes / DSH) ============
+const phaseText = { running:'运行中', starting:'正在启动中', failed:'已掉线', stopped:'未运行' };
+const phaseWord = { running:'运行中', starting:'启动中', failed:'掉线', stopped:'未启动' };
+function badgeText(p) { return phaseWord[p] || p; }
+function footColor(p) {
+  return p==='running'?'var(--green)':p==='starting'?'var(--accent)':p==='failed'?'var(--warn)':'var(--muted)';
+}
+function renderPhase(p) {
+  S.phase = p;
+  const pill = $('phasePill');
+  pill.textContent = phaseText[p] || p;
+  pill.className = 'pill ' + p;
+  const b = $('oBadge');
+  b.className = 'badge ' + p;
+  b.textContent = badgeText(p);
+  renderFoot();
+}
+function renderFoot() {
+  const dp = S.dsh ? S.dsh.phase : 'stopped';
+  const dot = p => '<span class="dot" style="background:' + footColor(p) + '"></span>';
+  $('sideFoot').innerHTML = dot(S.phase) + 'Hermes ' + phaseText[S.phase] +
+    ' <span class="muted">·</span> ' + dot(dp) + 'DSH ' + phaseText[dp];
+}
+function renderState(e) {
+  renderPhase(e.phase);
+  if (e.dsh) renderDsh(e.dsh);
+  const run = e.phase === 'running';
+  renderAgent(V_HERMES, {
+    phase: e.phase, pid: e.pid, memMB: e.memMB, uptimeSec: e.uptimeSec, port: e.port,
+    detail: run ? '127.0.0.1:' + e.port + ' — 就绪后自动切到「Hermes」页签'
+          : e.phase === 'starting' ? '等待端口就绪 (' + e.startingSec + 's / 45s)'
+          : e.phase === 'failed' ? '端口无监听, 可重启网关'
+          : (e.rootState === 'pendingBuild' ? '便携包尚未构建' : '')
+  });
+}
+function renderDsh(d) {
+  S.dsh = d;
+  const run = d.phase === 'running';
+  renderAgent(V_DSH, {
+    phase: d.phase, pid: d.pid, memMB: d.memMB, uptimeSec: d.uptimeSec, port: d.port,
+    startBlocked: !d.installed,
+    detail: !d.installed ? '未安装 — 到「构建」页一键构建 .\\DSH'
+          : run ? '127.0.0.1:' + d.port + (d.tokenReady ? ' — 已捕获会话 token' : '')
+          : d.phase === 'starting' ? '等待端口就绪 (' + d.startingSec + 's / 45s)'
+          : d.phase === 'failed' ? '端口无监听, 可重试启动' : ''
+  });
+  $('btnDPlugins').disabled = !d.installed;
+  $('btnDRestart').disabled = d.phase === 'starting' || !d.installed;
+  renderFoot();
+}
+// ---- 两 Agent 共用的状态渲染 (差异只在元素 id 与 detail 文案) ----
+const V_HERMES = { badge:'oBadge', detail:'oDetail', metrics:'oMetrics',
+                   btnStart:'btnOStart', btnStop:'btnOStop', btnOpen:'btnOOpen' };
+const V_DSH    = { badge:'dBadge', detail:'dDetail', metrics:'dMetrics',
+                   btnStart:'btnDStart', btnStop:'btnDStop', btnOpen:'btnDOpen' };
+function metricsHtml(s) {
+  const run = s.phase === 'running';
+  return '<span class="metric"><div class="k">PID</div><div class="v">' + (run ? s.pid : '—') + '</div></span>' +
+    '<span class="metric"><div class="k">内存</div><div class="v">' + (run ? fmtMB(s.memMB) : '—') + '</div></span>' +
+    '<span class="metric"><div class="k">运行时长</div><div class="v">' + (run ? fmtUp(s.uptimeSec) : '—') + '</div></span>' +
+    '<span class="metric"><div class="k">端口</div><div class="v">' + s.port + '</div></span>';
+}
+function renderAgent(v, s) {
+  const b = $(v.badge);
+  b.className = 'badge ' + s.phase;
+  b.textContent = badgeText(s.phase);
+  $(v.detail).textContent = s.detail;
+  $(v.metrics).innerHTML = metricsHtml(s);
+  $(v.btnStop).disabled = s.phase !== 'running';
+  if (v.btnOpen) $(v.btnOpen).disabled = s.phase !== 'running';
+  const bs = $(v.btnStart);
+  bs.disabled = s.phase === 'starting' || s.phase === 'running' || !!s.startBlocked;
+  bs.textContent = s.phase === 'starting' ? '启动中...'
+                 : s.phase === 'running' ? '运行中'
+                 : s.phase === 'failed'  ? '重试启动'
+                 : '启动';
+}
+function fmtMB(mb){ return mb >= 1024 ? (mb/1024).toFixed(1)+' GB' : mb+' MB'; }
+function fmtUp(s){ const h=(s/3600)|0,m=((s%3600)/60)|0; return h?h+'h '+m+'m':m?m+'m '+(s%60)+'s':s+'s'; }
+
+// ============ 事件路由 ============
+function routeEvent(e) {
+  switch (e.type) {
+  case 'proc.state':
+    renderState(e);
+    // 启动时未检测到环境 -> 自动切到构建页 (仅首条 proc.state 判定一次)
+    if (!S.bootSwitched) {
+      S.bootSwitched = true;
+      if (e.rootState === 'pendingBuild') { switchTo('build'); applyLocks(); }
+    }
+    break;
+  case 'op.result':
+    // DSH 插件装/卸完成: 恢复按钮 + 成功后询问立即重启
+    if (e.cmd === 'dshplugin.add' || e.cmd === 'dshplugin.remove') {
+      dshPluginIdle();
+      if (e.ok && confirm((e.cmd === 'dshplugin.add' ? '插件安装完成' : '插件已卸载') +
+                          '。是否立即重启 DSH 使其生效?')) host('dsh.restart');
+    }
+    // 更新请求被拒绝 (如已有任务/无法确定版本): 恢复更新按钮, 不留卡死态
+    if (e.cmd === 'update.apply') setUpdateButtonsBusy(false);
+    // 自更新完成: 询问就地重启拉起新 exe (applyLauncherUpdate 已完成自替换)
+    if (e.cmd === 'update.apply' && e.ok && S.lastUpdId === 'launcher') {
+      if (confirm('启动器已更新, 立即重启生效?')) host('app.relaunch');
+    }
+    // 备份删除成功: 刷新备份列表 (删除中的按钮随列表重绘消失)
+    if (e.cmd === 'update.backupDelete') {
+      if (e.ok) host('update.backups');
+      else {   // 失败: 恢复按钮状态
+        document.querySelectorAll('#uBackups button[data-path]').forEach(x => {
+          x.disabled = false; x.textContent = '删除';
+        });
+      }
+    }
+    // 代理测试完成: 恢复按钮
+    if (e.cmd === 'net.testProxy') proxyTestDone(e.ok);
+    toast(e.message, e.ok); break;
+  case 'build.remote': renderRemote(e); break;
+  case 'dshbuild.remote': renderDshRemote(e); break;
+  case 'dshbuild.progress':
+    $('bDshBar').style.width = e.percent + '%';
+    $('bDshStage').textContent = e.stage + ' (' + e.percent + '%)';
+    break;
+  case 'dshbuild.done':
+    $('btnDshBuildCancel').disabled = true; $('btnDshBuild').disabled = false;
+    $('bDshBar').style.width = e.ok ? '100%' : '0%';
+    $('bDshBar').style.background = e.ok ? 'var(--green)' : '';
+    $('bDshStage').textContent = e.message;
+    if (e.ok) toast('DSH 便携包就绪 (.\\DSH), 可在概览页启动', true);
+    break;
+  case 'build.progress':
+    $('bBar').style.width = e.percent + '%';
+    $('bStage').textContent = e.stage + ' (' + e.percent + '%)';
+    break;
+  case 'build.done':
+    $('btnBuildCancel').disabled = true; $('btnBuild').disabled = false;
+    $('bBar').style.width = e.ok ? '100%' : '0%';
+    $('bBar').parentElement.className = 'bar' + (e.ok ? ' g' : '');
+    $('bStage').textContent = e.message + (e.ok ? ' — runtime ' + (e.runtimeVersion||'') + ' / web-ui ' + (e.webUiVersion||'') : '');
+    if (e.ok) $('btnBuildStart2').style.display = '';
+    break;
+  case 'app.rootReady':
+    S.rootState = 'full'; S.coreReady = true; applyLocks();
+    $('oEnv').textContent = '数据根: ' + e.root;
+    host('update.scanLocal'); host('plugin.list'); host('preflight.run');
+    break;
+  case 'update.list': renderUpdateList(e); break;
+  case 'update.progress':
+    $('uProgWrap').style.display = '';
+    $('uBar').style.width = e.percent + '%';
+    $('uStage').textContent = e.stage;
+    break;
+  case 'update.nodeList': openNodeVersionPicker(e.versions); break;
+  case 'update.backupList': renderBackups(e); break;
+  case 'preflight.result': renderDiag(e); break;
+  case 'dshplugin.list': renderDshPlugins(e); break;
+  case 'agent.list': applyAgentMeta(e.agents); break;
+  case 'provider.presets': renderPresets(e.presets); break;
+  case 'provider.list': renderProviders(e.providers); break;
+  case 'model.list': renderModels(e.models); break;
+  case 'plugin.list':
+    host('app.diag', { text: 'plugin.list 收到 ' + (e.plugins||[]).length + ' 个插件' });
+    S.plugins = e.plugins || [];
+    S.pluginSwitches = e.switches || {};
+    renderPlugins(S.plugins);
+    renderQuickCard();
+    break;
+  case 'plugin.action.result': {
+    if (e.switch !== undefined && e.pluginId && e.actionId) {
+      S.pluginSwitches = S.pluginSwitches || {};
+      (S.pluginSwitches[e.pluginId] = S.pluginSwitches[e.pluginId] || {})[e.actionId] = !!e.switch;
+      renderQuickCard();
+    }
+    // HSPP v1.4: 插件回传的结构化结果 — checklist 渲染成勾选列表; cleaned 后自动重扫刷新
+    if (e.data && e.pluginId) {
+      if (e.data.checklist) {
+        S.pluginData[e.pluginId] = e.data.checklist;
+        delete S.cleanupSel[e.pluginId];
+        renderCleanupList(e.pluginId);
+      } else if (e.data.cleaned) {
+        host('plugin.action', { pluginId: e.pluginId, actionId: 'scan' });
+      }
+    }
+    // 恢复执行中按钮的中间态
+    document.querySelectorAll('button[data-busy]').forEach(b => {
+      if (b.dataset.p === e.pluginId && b.dataset.a === e.actionId) {
+        b.disabled = false; delete b.dataset.busy;
+        if (b.dataset.orig) b.textContent = b.dataset.orig;
+      }
+    });
+    const qr = $('quickResult');
+    if (qr) {
+      qr.textContent = (e.ok ? '✓ ' : '✗ ') + (e.pluginId + '/' + e.actionId) +
+        (e.message ? ' · ' + e.message.split('\n')[0] : '');
+      qr.style.color = e.ok ? 'var(--green)' : 'var(--red)';
+    }
+    if (!e.ok) toast('插件动作失败 (rc=' + e.rc + ')' + (e.message ? '\n' + e.message : ''), false);
+    break;
+  }
+  case 'app.pickFile.result':
+    if (e.purpose === 'pluginInstall' && e.path) host('plugin.install', { path: e.path });
+    break;
+  case 'settings.state': applySettings(e); break;
+  case 'log.entries': renderLogs(e.entries); break;
+  }
+}
+// ---- Node 版本选择弹层 ----
+function openNodeVersionPicker(versions) {
+  const list = versions || [];
+  if (!list.length) { toast('未获取到 Node 版本列表 (网络或 nodejs.org 不可达)', false); return; }
+  const sel = $('nodeVerSel');
+  sel.innerHTML = list.map(v => '<option value="' + esc(String(v)) + '">' + esc(String(v)) + '</option>').join('');
+  $('nodeVerModal').style.display = '';
+}
+$('nodeVerCancel').onclick = () => { $('nodeVerModal').style.display = 'none'; };
+$('nodeVerOk').onclick = () => {
+  const v = $('nodeVerSel').value;
+  $('nodeVerModal').style.display = 'none';
+  if (!v) return;
+  beginUpdateUi('Node.js 运行时 v' + v);
+  host('update.apply', { componentId: 'node', version: v, channel: $('uChannel').value });
+};
+function toast(msg, ok) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:99;padding:10px 18px;border-radius:8px;' +
+    'background:var(--panel2);border:1px solid ' + (ok?'var(--accent-dim)':'var(--red)') + ';font-size:13px;max-width:420px';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4200);
+}
+
+// ============ 构建 ============
+$('dlOpen').onclick = () => host('app.openDownloads');
+$('dlRt').onclick = () => { if (S.urls.rt) host('app.openUrl', { url: S.urls.rt }); };
+$('dlWu').onclick = () => { if (S.urls.wu) host('app.openUrl', { url: S.urls.wu }); };
+$('btnResolve').onclick = () => { $('bRemote').textContent = '正在解析官方最新版本...'; host('build.resolve'); };
+$('btnBuild').onclick = () => {
+  let t = $('bTarget').value.trim();
+  if (!t || t === '.') t = '.\Hermes';
+  host('build.start', { targetDir: t, useCache: $('bCache').checked, mirror: $('sMirror') ? $('sMirror').value.trim() : '' });
+};
+$('btnBuildCancel').onclick = () => host('build.cancel');
+$('btnBuildStart2').onclick = () => {
+  if (S.phase === 'starting' || S.phase === 'running') return;
+  renderPhase('starting');
+  $('btnBuildStart2').disabled = true;
+  $('btnBuildStart2').textContent = '启动中...';
+  host('proc.start');
+};
+function renderRemote(e) {
+  if (!e.ok) { $('bRemote').textContent = '解析失败: ' + (e.message||''); return; }
+  const mb = n => (n/1048576).toFixed(0);
+  let html = '<span class="ok">runtime <b>' + esc(e.runtime.version) + '</b> (' + mb(e.runtime.size) +
+    ' MB) · web-ui <b>' + esc(e.webUi.version) + '</b> (' + mb(e.webUi.size) +
+    ' MB)</span> <span class="muted">— sha256 将在下载后自动校验</span>';
+  $('bRemote').innerHTML = html;
+  S.urls.rt = e.runtime.url || ''; S.urls.wu = e.webUi.url || '';
+  $('dlRt').disabled = !S.urls.rt; $('dlWu').disabled = !S.urls.wu;
+  $('dlRt').textContent = '下载 runtime (' + mb(e.runtime.size) + ' MB)';
+  $('dlWu').textContent = '下载 web-ui (' + mb(e.webUi.size) + ' MB)';
+  if (e.downloadDir) $('dlDir').textContent = e.downloadDir;
+}
+
+// ============ 更新 ============
+$('btnULocal').onclick = () => host('update.scanLocal', { channel: $('uChannel').value });
+$('btnURemote').onclick = () => host('update.scanRemote', { channel: $('uChannel').value });
+$('btnUBackups').onclick = () => host('update.backups');
+// ---- 更新进行中的即时反馈: 按钮禁用改标题 + 进度条归零联动 ----
+function setUpdateButtonsBusy(busy) {
+  document.querySelectorAll('#uBody button').forEach(b => b.disabled = busy);
+}
+function beginUpdateUi(name) {
+  setUpdateButtonsBusy(true);
+  // 把当前行按钮改成"更新中..."由禁用样式体现; 进度条立刻可见并归零
+  $('uProgWrap').style.display = '';
+  $('uBar').style.width = '0%';
+  $('uStage').textContent = '准备更新 ' + name + ' ... (更新前自动停止相关进程并备份)';
+}
+// 检测徽标 (标题栏 pill + 导航 ★): 只认含远端比对的扫描 (withRemote),
+// 本地刷新不覆盖已有结论。★N 只数「可一键更新」的组件 (Python 等不支持
+// 一键更新的行不算, 避免误报); pill 同时显示当前启动器版本号。
+function applyUpdBadge(e) {
+  const cs = e.components || [];
+  const n = cs.filter(c => c.updateAvailable && c.supported).length;
+  const lc = cs.find(c => c.id === 'launcher');
+  const ver = lc && lc.current ? 'v' + lc.current : '';
+  const star = $('navUpdStar'), pill = $('updPill');
+  if (!e.withRemote) { pill.style.display = 'none'; return; }
+  star.classList.toggle('off', n === 0);
+  pill.style.display = '';
+  pill.textContent = n > 0
+    ? '★ ' + n + ' 项可更新' + (ver ? ' · 当前启动器 ' + ver : '')
+    : (('启动器 ' + ver + ' 已是最新 ✓').trim());
+  pill.className = 'pill ' + (n > 0 ? 'updy' : 'updok');
+}
+$('updPill').onclick = () => switchTo('update');
+function renderUpdateList(e) {
+  applyUpdBadge(e);
+  const tb = $('uBody'); tb.innerHTML = '';
+  (e.components||[]).forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + esc(c.name) + (c.highRisk ? ' <span class="warn">(高风险)</span>' : '') + '</td>' +
+      '<td class="muted">' + esc(c.current || '(未探测)') + '</td>' +
+      '<td class="muted">' + esc(c.latest || '-') + '</td>' +
+      '<td>' + (c.updateAvailable ? '<span class="red">[有更新]</span>' :
+               c.supported ? '<span class="ok">最新</span>' : '<span class="muted">不支持一键更新 (Python 请走「构建便携包」重建)</span>') + '</td>' +
+      '<td>' + (c.updateAvailable && c.supported ? '<button class="btn small primary">更新</button>' : '') + '</td>';
+    if (c.updateAvailable && c.supported)
+      tr.querySelector('button').onclick = () => {
+        if (c.id === 'node') {                 // 组件 id 为核心层 toString 短名; 先拉版本列表弹层选版本
+          host('update.nodeVersions');
+          return;
+        }
+        beginUpdateUi(c.name);
+        S.lastUpdId = c.id;                     // 供 op.result 判断是否自更新
+        host('update.apply', { componentId: c.id, channel: e.channel || $('uChannel').value });
+      };
+    tb.appendChild(tr);
+  });
+  if (!(e.components||[]).length) tb.innerHTML = '<tr><td colspan="5" class="muted">无数据</td></tr>';
+}
+function renderBackups(e) {
+  $('uBackupCard').style.display = '';
+  const tb = $('uBackups'); tb.innerHTML = '';
+  (e.backups||[]).forEach(b => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + esc(b.component) + '</td><td class="muted">' + esc(b.tag) + '</td>' +
+      '<td class="muted" style="font-size:11px">' + esc(b.path) + '</td>' +
+      '<td><button class="btn small">回滚</button> <button class="btn small danger">删除</button></td>';
+    const [rb, del] = tr.querySelectorAll('button');
+    rb.onclick = () => {
+      if (confirm('回滚到 ' + b.component + '/' + b.tag + ' ?')) host('update.rollback', { path: b.path });
+    };
+    del.onclick = () => {
+      if (!confirm('删除备份 ' + b.component + '/' + b.tag + ' ? 此操作不可恢复。')) return;
+      del.disabled = true; del.textContent = '删除中...';
+      rb.disabled = true;
+      del.dataset.path = b.path;
+      host('update.backupDelete', { path: b.path });
+    };
+    tb.appendChild(tr);
+  });
+  if (!(e.backups||[]).length) tb.innerHTML = '<tr><td class="muted">暂无备份</td></tr>';
+}
+
+// ============ 插件侧边栏入口 (HSPP v1.2: uiEntry.sidebar) ============
+// 已加载插件可把入口挂到左侧边栏: 动态生成导航项 + 独立面板 (动作按钮)
+// HSPP v1.4: 面板预留清单容器; 动作声明 arg:"checklist" 时把勾选类别经 payload 回传;
+// 声明 result:"checklist" 的动作回传 checklist 数据渲染到容器 (缺省凡带清单数据的都渲染)。
+
+// 统一动作执行: 按钮进入中间态 (军规), 结果事件里按 data-p/data-a 恢复
+function runPluginAction(btn, pid, aid, payload) {
+  if (btn) {
+    btn.disabled = true; btn.dataset.busy = '1';
+    if (!btn.dataset.orig) btn.dataset.orig = btn.textContent;
+    btn.textContent = btn.dataset.orig + ' …';
+  }
+  const args = { pluginId: pid, actionId: aid };
+  if (payload) args.payload = payload;
+  host('plugin.action', args);
+}
+
+function fmtBytes(n) {
+  n = n || 0;
+  if (n >= 1073741824) return (n / 1073741824).toFixed(2) + ' GB';
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+  return n + ' B';
+}
+const RISK_TXT = ['无风险', '低风险', '高风险'];
+const RISK_COLOR = ['var(--green)', 'var(--warn)', 'var(--red)'];
+
+// 勾选状态: 用户没动过的类别按风险缺省 (0=无风险 默认勾选)
+function cleanupChecked(pid, it) {
+  const sel = S.cleanupSel[pid];
+  return sel && sel[it.id] !== undefined ? !!sel[it.id] : (it.risk || 0) === 0;
+}
+function checkedCleanupIds(pid) {
+  const d = S.pluginData[pid];
+  return d ? (d.items || []).filter(it => cleanupChecked(pid, it)).map(it => it.id) : [];
+}
+
+// 把所有已扫描插件的清单重新渲染 (容器重建后恢复)
+function renderCleanupListForAll() {
+  Object.keys(S.pluginData || {}).forEach(renderCleanupList);
+}
+
+// 把某插件的扫描清单渲染进它所有容器 (侧边栏面板 + 插件管理卡片)
+function renderCleanupList(pid) {
+  const d = S.pluginData[pid];
+  if (!d) return;
+  document.querySelectorAll('[data-scanlist="' + pid + '"]').forEach(box => {
+    const items = d.items || [];
+    let html = '<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">' +
+      '<div class="muted" style="font-size:11px;word-break:break-all">扫描 ' + esc(d.root || '') +
+      ' · ' + (d.scannedFiles || 0) + ' 项 / ' + fmtBytes(d.scannedBytes) + ' · 耗时 ' + (d.durMs || 0) + 'ms' +
+      ' · 勾选默认仅无风险项</div>';
+    items.forEach(it => {
+      const risk = it.risk || 0;
+      html += '<label style="display:flex;align-items:baseline;gap:8px;padding:5px 0;cursor:pointer">' +
+        '<input type="checkbox" data-ci="' + esc(it.id) + '"' + (cleanupChecked(pid, it) ? ' checked' : '') + '>' +
+        '<span style="flex:none;font-size:13px">' + esc(it.name) + '</span>' +
+        '<span class="muted" style="flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"' +
+        ' title="' + esc((it.targets || []).join('\n')) + '">' + esc(it.note || '') +
+        ((it.targets || []).length ? ' · ' + esc(it.targets.join(' ; ')) : '') + '</span>' +
+        '<span class="muted" style="flex:none;font-size:12px">' + (it.files || 0) + ' 项 · ' + fmtBytes(it.bytes) + '</span>' +
+        '<span style="flex:none;width:52px;text-align:right;font-size:12px;color:' +
+        (RISK_COLOR[risk] || 'var(--muted)') + '">' + (RISK_TXT[risk] || '?') + '</span></label>';
+    });
+    if (!items.length) html += '<div class="muted" style="padding:6px 0">没有发现可清理的垃圾。</div>';
+    const sel = items.filter(it => cleanupChecked(pid, it));
+    const sum = sel.reduce((s, it) => s + (it.bytes || 0), 0);
+    html += '<div style="margin-top:6px;font-size:12px">已勾选 <b style="color:var(--green)">' + fmtBytes(sum) +
+      '</b> <span class="muted">(' + sel.length + '/' + items.length + ' 类)</span>' +
+      '<a href="#" data-ck="safe" style="margin-left:14px;font-size:12px">仅无风险</a>' +
+      '<a href="#" data-ck="all" style="margin-left:8px;font-size:12px">全选</a>' +
+      '<a href="#" data-ck="none" style="margin-left:8px;font-size:12px">全不选</a></div></div>';
+    box.innerHTML = html;
+    box.querySelectorAll('input[data-ci]').forEach(cb => {
+      cb.onchange = () => {
+        const s = S.cleanupSel[pid] || (S.cleanupSel[pid] = {});
+        s[cb.dataset.ci] = cb.checked;
+        renderCleanupList(pid);
+      };
+    });
+    box.querySelectorAll('a[data-ck]').forEach(a => {
+      a.onclick = ev => {
+        ev.preventDefault();
+        const s = S.cleanupSel[pid] || (S.cleanupSel[pid] = {});
+        items.forEach(it => {
+          s[it.id] = a.dataset.ck === 'all' ? true : a.dataset.ck === 'none' ? false : (it.risk || 0) === 0;
+        });
+        renderCleanupList(pid);
+      };
+    });
+  });
+}
+
+// 面板动作按钮接线 (侧边栏面板与插件管理卡片共用):
+// arg:"checklist" 的动作把勾选类别经 payload.categories 回传
+function wirePluginActionButtons(scope) {
+  scope.querySelectorAll('button[data-p][data-a]').forEach(b => {
+    let acts = [];
+    const pid = b.dataset.p;
+    const plug = (S.plugins || []).find(p => p.id === pid);
+    if (plug) (plug.uiEntries || []).forEach(u => {
+      try { acts = acts.concat(JSON.parse(u.actions || '[]') || []); } catch (_) {}
+    });
+    const a = acts.find(x => x.id === b.dataset.a) || {};
+    b.onclick = () => {
+      if (b.disabled) return;
+      if (a.arg === 'checklist') {
+        const d = S.pluginData[pid];
+        if (!d) { toast('请先执行扫描, 再选择要清理的类别', false); return; }
+        const ids = checkedCleanupIds(pid);
+        if (!ids.length) { toast('未勾选任何类别', false); return; }
+        runPluginAction(b, pid, b.dataset.a, { categories: ids });
+        return;
+      }
+      if (b.dataset.c && !confirm(b.dataset.c)) return;
+      runPluginAction(b, pid, b.dataset.a);
+    };
+  });
+}
+
+// 插件面板的清单容器初始占位 (扫描后由 renderCleanupList 填充)
+function scanListBox(pid) {
+  const scanned = !!S.pluginData[pid];
+  return '<div class="scanlist" data-scanlist="' + esc(pid) + '">' +
+    (scanned ? '' : '<div class="muted" style="margin-top:10px;font-size:12px">点击「扫描垃圾文件」查看可清理项 (分类统计 + 风险标注)。</div>') +
+    '</div>';
+}
+
+function renderPluginNav(plugins) {
+  document.querySelectorAll('.nav-item[data-dyn]').forEach(n => n.remove());
+  document.querySelectorAll('.section[data-dyn]').forEach(x => x.remove());
+  const nav = $('nav'), wrap = $('contentWrap');
+  (plugins||[]).forEach(p => {
+    if (!p.loaded) return;
+    (p.uiEntries||[]).forEach(u => {
+      if (!u.sidebar || p.sidebarEnabled === false) return;
+      const secId = 'pui-' + p.id + '-' + String(u.id).replace(/[^A-Za-z0-9_-]/g, '');
+      const n = document.createElement('div');
+      n.className = 'nav-item'; n.dataset.dyn = '1';
+      n.innerHTML = '<span class="dot" style="background:var(--accent)"></span>' + esc(u.title);
+      const sec = document.createElement('div');
+      sec.className = 'section'; sec.id = 'sec-' + secId; sec.dataset.dyn = '1';
+      let acts = [];
+      try { acts = JSON.parse(u.actions || '[]'); } catch (err) {}
+      let actsHtml = '';
+      acts.forEach(a => {
+        actsHtml += '<button class="btn primary" data-p="' + esc(p.id) + '" data-a="' + esc(a.id) + '"' +
+          (a.confirm ? ' data-c="' + esc(a.confirm) + '"' : '') + '>' + esc(a.label || a.id) + '</button>';
+      });
+      sec.innerHTML = '<div class="card"><h3>' + esc(p.name) + ' — ' + esc(u.title) + '</h3>' +
+        '<div class="muted">由插件提供 (HSPP sidebar 入口)</div>' +
+        (actsHtml ? '<div class="row" style="margin-top:14px">' + actsHtml + '</div>' : '<div class="muted" style="margin-top:10px">此入口暂无动作。</div>') +
+        scanListBox(p.id) +
+        '</div>';
+      n.onclick = () => {
+        document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.section').forEach(x => x.classList.remove('active'));
+        n.classList.add('active');
+        sec.classList.add('active');
+        $('secTitle').textContent = u.title;
+      };
+      wirePluginActionButtons(sec);
+      renderCleanupList(p.id);     // 重建面板后恢复已有扫描清单
+      nav.appendChild(n);
+      wrap.appendChild(sec);
+    });
+  });
+  host('app.diag', { text: 'pluginNav: 插件 ' + (plugins||[]).length +
+    ' 个, 动态导航项 ' + document.querySelectorAll('.nav-item[data-dyn]').length });
+}
+
+// ============ DeepSeek Harness 交互 (渲染共用 renderAgent, 这里只接事件) ============
+$('btnDStart').onclick = () => {
+  if (S.dsh && (S.dsh.phase === 'starting' || S.dsh.phase === 'running')) return;
+  renderDsh(Object.assign({}, S.dsh || { installed: true, port: 3080 }, { phase: 'starting' }));
+  $('btnDStart').disabled = true;
+  $('btnDStart').textContent = '启动中...';
+  host('dsh.start');
+};
+$('btnDStop').onclick = () => host('dsh.stop');
+$('btnDOpen').onclick = () => host('dsh.openBrowser');
+$('btnDRestart').onclick = () => host('dsh.restart');
+$('btnDPlugins').onclick = () => { switchTo('plugin'); host('dshplugin.list'); };
+
+// ---- DSH 插件管理 (dsh plugin add/remove, 免命令行) ----
+function renderDshPlugins(e) {
+  if (!e.installed) {
+    $('dshPluginBody').innerHTML = '<tr><td colspan="3" class="muted">DSH 未安装 — 先到「构建」页构建 .\\DSH。</td></tr>';
+    return;
+  }
+  const tb = $('dshPluginBody'); tb.innerHTML = '';
+  (e.plugins || []).forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + esc(p.name) + '</td><td class="muted">' + esc(p.range || '-') + '</td><td></td>';
+    const rm = document.createElement('button');
+    rm.className = 'btn small danger'; rm.textContent = '卸载';
+    rm.onclick = () => {
+      if (confirm('卸载插件 ' + p.name + '? (卸载后建议重启 DSH)')) host('dshplugin.remove', { pkg: p.name });
+    };
+    tr.lastChild.appendChild(rm);
+    tb.appendChild(tr);
+  });
+  if (!tb.children.length) tb.innerHTML = '<tr><td colspan="3" class="muted">暂无第三方插件。在上方输入 npm 包名点「安装」。</td></tr>';
+}
+// 支持直接粘贴: 整条 dsh plugin 命令 / git clone 命令 / GitHub 链接 / owner/repo 简写 / npm 包名。
+// git 类来源归一化为 github:owner/repo (pnpm 走 tarball 拉取, 不依赖本机 git; 真需要 git 时
+// 宿主侧 pluginOp 已前置 PortableGit)。
+function normalizeGitUrl(u) {
+  u = u.trim().replace(/^["']+|["']+$/g, '');
+  if (/^git\+/i.test(u)) return u;
+  let m = u.match(/^https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+?)(\.git)?$/i);
+  if (m) return 'github:' + m[1] + '/' + m[2];
+  m = u.match(/^git@github\.com:([\w.-]+)\/([\w.-]+?)(\.git)?$/i);
+  if (m) return 'github:' + m[1] + '/' + m[2];
+  if (/^https?:\/\//i.test(u)) return 'git+' + u + (/\.git$/i.test(u) ? '' : '.git');
+  return u;
+}
+function normalizeDshPkg(raw) {
+  const s = (raw || '').trim().replace(/^["']+|["']+$/g, '');
+  if (!s) return null;
+  // 整条 dsh plugin 命令
+  const m = s.match(/^(?:dsh\s+)?plugin(?:\s+--profile\s+\S+)?\s+(add|install|i|remove|rm|uninstall)\s+([^\s]+)\s*$/i);
+  if (m) return { pkg: m[2], verb: /remove|rm|uninstall/i.test(m[1]) ? 'remove' : 'add' };
+  // git clone 命令 / 裸 git 或 github URL
+  const gc = s.match(/^git\s+clone\s+(\S+)/i);
+  if (gc) return { pkg: normalizeGitUrl(gc[1]), verb: 'add' };
+  if (/^(https?:\/\/\S+|git\+\S+|github:[\w.-]+\/[\w.-]+)$/i.test(s))
+    return { pkg: normalizeGitUrl(s), verb: 'add' };
+  // owner/repo 简写 (GitHub 短柄; @scope/name 是 npm 包名, 不转换)
+  if (/^[\w.-]+\/[\w.-]+$/.test(s) && !s.startsWith('@'))
+    return { pkg: 'github:' + s, verb: 'add' };
+  // 其他多词输入: 找 add/install/remove 动词取其后参数, 否则拒绝
+  if (/\s/.test(s)) {
+    const parts = s.split(/\s+/);
+    const kw = parts.findIndex(p => /^(add|install|i|remove|rm|uninstall)$/i.test(p));
+    if (kw >= 0 && parts[kw + 1])
+      return { pkg: parts[kw + 1], verb: /remove|rm|uninstall/i.test(parts[kw]) ? 'remove' : 'add' };
+    return null;
+  }
+  // git@github.com:owner/repo(.git) SCP 形态
+  const scp = s.match(/^git@github\.com:([\w.-]+)\/([\w.-]+?)(\.git)?$/i);
+  if (scp) return { pkg: 'github:' + scp[1] + '/' + scp[2], verb: 'add' };
+  return { pkg: s, verb: 'add' };   // 单 token = npm 包名
+}
+function dshPluginIdle() {
+  $('btnDshPluginAdd').disabled = false;
+  $('btnDshPluginAdd').textContent = '安装';
+  $('dshPluginStage').textContent = '';
+}
+$('btnDshPluginRefresh').onclick = () => host('dshplugin.list');
+$('btnDshPluginAdd').onclick = () => {
+  if (!S.dsh || S.dsh.phase !== 'running') return toast('请先启动 DSH 再安装插件', false);
+  const n = normalizeDshPkg($('dshPkg').value);
+  if (!n) return toast('未能解析出包名 — 只填包名, 或粘贴完整的 dsh plugin 命令', false);
+  $('dshPkg').value = n.pkg;
+  $('btnDshPluginAdd').disabled = true;
+  $('btnDshPluginAdd').textContent = n.verb === 'remove' ? '卸载中...' : '安装中...';
+  $('dshPluginStage').textContent =
+    (n.verb === 'remove' ? '正在卸载 ' : '正在安装 ') + n.pkg + ' ... (可能需要数十秒, 请勿关闭 DSH)';
+  host(n.verb === 'remove' ? 'dshplugin.remove' : 'dshplugin.add', { pkg: n.pkg });
+};
+$('btnDshResolve').onclick = () => { $('bDshRemote').textContent = '正在解析版本 (npm registry / nodejs.org)...'; host('build.dsh.resolve'); };
+$('btnDshBuild').onclick = () => {
+  if (S.dsh && S.dsh.phase === 'running') return toast('请先停止 DSH 再构建', false);
+  $('btnDshBuild').disabled = true; $('btnDshBuildCancel').disabled = false;
+  $('bDshBar').style.width = '0%'; $('bDshBar').style.background = '';
+  $('bDshStage').textContent = '准备构建...';
+  host('build.dsh.start', { useCache: $('bDshCache').checked });
+};
+$('btnDshBuildCancel').onclick = () => host('build.dsh.cancel');
+function renderDshRemote(e) {
+  if (!e.ok) { $('bDshRemote').textContent = '解析失败: ' + (e.message || '') + ' (网络不畅时构建仍可用内置锁定版本)'; return; }
+  $('bDshRemote').innerHTML = '<span class="ok">dsh <b>' + esc(e.dshLatest) + '</b> · Node LTS <b>' + esc(e.nodeLts) +
+    '</b></span> <span class="muted">— 构建默认锁启动器内置版本 (dsh 处于 RC, 官方明示将有破坏性变更), 可用缓存跳过下载</span>';
+}
+
+// ============ 概览 ============
+$('btnOStart').onclick = () => {
+  if (S.phase === 'starting' || S.phase === 'running') return;
+  // 立即反馈: 按钮先变, 宿主 proc.state 事件 (1s 周期) 随后校准
+  renderPhase('starting');
+  $('oDetail').textContent = '正在启动, 就绪后自动切换到「Hermes」页';
+  $('btnOStart').disabled = true;
+  $('btnOStart').textContent = '启动中...';
+  host('proc.start');
+};
+$('btnOStop').onclick = () => { if (S.phase !== 'running') return; host('proc.stop'); };
+$('btnORestart').onclick = () => host('proc.restart');
+$('btnOOpen').onclick = () => host('proc.openBrowser');
+$('btnORoot').onclick = () => host('app.openRoot');
+
+// ============ 体检 ============
+$('btnDiag').onclick = () => { $('diagSummary').textContent = '检查中...'; host('preflight.run'); };
+$('btnDiagFixAll').onclick = () => host('preflight.fixAll');
+function renderDiag(e) {
+  const tb = $('diagBody'); tb.innerHTML = '';
+  (e.items||[]).forEach(it => {
+    const tr = document.createElement('tr');
+    const cls = it.level === 'pass' ? 'ok' : it.level === 'warn' ? 'warn' : 'red';
+    tr.innerHTML = '<td class="' + cls + '" style="font-weight:700">' + it.level.toUpperCase() + '</td>' +
+      '<td>' + esc(it.title) + '</td><td class="muted">' + esc(it.detail) + '</td><td></td>';
+    if (it.fixable && it.fixAction && it.fixAction.startsWith('auto:')) {
+      const b = document.createElement('button');
+      b.className = 'btn small'; b.textContent = '自动修复';
+      b.onclick = () => host('preflight.fix', { fixAction: it.fixAction });
+      tr.lastChild.appendChild(b);
+    }
+    tb.appendChild(tr);
+  });
+  const s = e.summary || {};
+  $('diagSummary').textContent = s.fail > 0
+    ? ('发现 ' + s.fail + ' 项阻断问题 (PASS ' + s.pass + ' / WARN ' + s.warn + ')')
+    : '全部检查通过, 可以启动 ✓';
+}
+
+// ============ Provider ============
+S.presets = [];
+let curPreset = null;            // 当前选中的预设对象 (手动填写时为 null)
+// Agent 描述符 (ADR-009): 构建页卡片标题/说明/目标目录按注册表填充
+function applyAgentMeta(list) {
+  (list || []).forEach(a => {
+    const card = document.querySelector('.card[data-agent="' + a.id + '"]');
+    if (!card) return;
+    const t = $('agentTitle-' + a.id), n = $('agentNote-' + a.id);
+    if (t) t.textContent = a.displayName;
+    if (n) n.textContent = 'Agent · ' + a.buildNote;
+    if (a.targetDirLabel) {
+      const inp = card.querySelector('input[type="text"]');
+      if (inp && !inp.value.trim()) { inp.value = a.targetDirLabel; inp.placeholder = a.targetDirLabel; }
+    }
+  });
+}
+function renderPresets(list) {
+  S.presets = list || [];
+  const sel = $('pPreset');
+  const groups = [];
+  S.presets.forEach(p => { if (!groups.includes(p.group)) groups.push(p.group); });
+  groups.forEach(g => {
+    const og = document.createElement('optgroup'); og.label = g;
+    S.presets.filter(p => p.group === g).forEach(p => og.appendChild(new Option(p.displayName, p.id)));
+    sel.appendChild(og);
+  });
+}
+function resetPresetUi() {
+  curPreset = null;
+  $('pPreset').value = '';
+  $('pPresetNote').textContent = '选择厂商预设可自动填充类型 / 端点 / Key 变量名, 并提供常用模型一键添加。';
+  $('pPresetModels').innerHTML = '';
+  $('pKeyHint').textContent = '';
+  $('pKeyUrl').style.display = 'none';
+}
+$('pPreset').onchange = () => {
+  curPreset = S.presets.find(p => p.id === $('pPreset').value) || null;
+  $('pPresetNote').textContent = curPreset ? (curPreset.notes || '') :
+    '选择厂商预设可自动填充类型 / 端点 / Key 变量名, 并提供常用模型一键添加。';
+  if (!curPreset) { resetPresetUi(); return; }
+  $('pId').value = curPreset.id === 'custom-blank' ? '' : curPreset.id;
+  $('pName').value = curPreset.displayName;
+  $('pKind').value = curPreset.kind || 'openai-compatible';
+  $('pBase').value = curPreset.baseUrl || '';
+  $('pEnv').value = curPreset.envVar || '';
+  $('pKeyHint').textContent = curPreset.keyRequired ? '(必填)' : '(可留空)';
+  if (curPreset.keyUrl) { $('pKeyUrl').href = curPreset.keyUrl; $('pKeyUrl').style.display = ''; }
+  else $('pKeyUrl').style.display = 'none';
+  const box = $('pPresetModels');
+  if (!curPreset.models || !curPreset.models.length) {
+    box.innerHTML = '<span class="muted">无预设模型, 保存后到「模型」页手动添加</span>';
+    return;
+  }
+  box.innerHTML = '<label class="f">常用模型 (随保存一起添加)</label>';
+  curPreset.models.forEach((m, i) => {
+    const lb = document.createElement('label');
+    lb.style.cssText = 'display:block;font-size:12px';
+    lb.innerHTML = '<input type="checkbox" class="pModelChk" value="' + esc(m.upstreamId) + '"' +
+      (i === 0 ? ' checked' : '') + '> ' + esc(m.displayName) +
+      ' <span class="muted">(' + esc(m.upstreamId) + ')</span>';
+    box.appendChild(lb);
+  });
+};
+$('btnKeyEye').onclick = () => {
+  const k = $('pKey');
+  k.type = k.type === 'password' ? 'text' : 'password';
+  $('btnKeyEye').textContent = k.type === 'password' ? '显示' : '隐藏';
+};
+$('btnPSave').onclick = () => {
+  const id = $('pId').value.trim();
+  if (!id) return toast('Provider ID 不能为空', false);
+  const isUpdate = S.providers.some(p => p.id === id);
+  const base = isUpdate ? S.providers.find(p => p.id === id) : null;
+  const p = {
+    id, displayName: $('pName').value.trim() || id,
+    kind: $('pKind').value, baseUrl: $('pBase').value.trim(),
+    envVar: $('pEnv').value.trim(),
+    apiKey: $('pKey').value.trim(),
+    providerName: (curPreset ? curPreset.providerName : '') || (base ? base.providerName : '') || '',
+    baseUrlEnvVar: (curPreset ? curPreset.baseUrlEnvVar : '') || (base ? base.baseUrlEnvVar : '') || '',
+    encrypted: base ? base.encrypted : false,
+    enabled: base ? base.enabled : true,
+    iconName: base ? base.iconName : ''
+  };
+  host('provider.save', Object.assign({ isUpdate }, p));
+  // 预设常用模型批量添加 (本地 ID = providerId/upstreamId)。
+  // 载荷必须含 Model 全部字段 (from_json 是严格宏, 缺字段会解析失败);
+  // 第一个入库的模型由 ModelRegistry 自动设为默认。已存在的跳过不报错。
+  if (curPreset && curPreset.models) {
+    let added = 0, skipped = 0;
+    document.querySelectorAll('.pModelChk:checked').forEach(c => {
+      const u = c.value;
+      const fullId = id + '/' + u;
+      if ((S.models || []).some(m => m.id === fullId)) { skipped++; return; }
+      const meta = curPreset.models.find(m => m.upstreamId === u) || {};
+      host('model.save', { id: fullId, providerId: id, upstreamId: u,
+        displayName: meta.displayName || u, params: {}, supportsTools: true,
+        enabled: true, isDefault: false,
+        addedAt: new Date().toISOString().slice(0,10), isUpdate: false });
+      added++;
+    });
+    if (added) toast('已添加 ' + added + ' 个常用模型' +
+      (skipped ? ' (跳过 ' + skipped + ' 个已存在)' : '') +
+      ' — 可到「模型」页调整', true);
+  }
+  resetPresetUi();
+  $('pKey').value = '';
+};
+$('btnPClear').onclick = () => {
+  $('pId').value=$('pName').value=$('pBase').value=$('pEnv').value=$('pKey').value='';
+  S.selProvider=null; $('pFormTitle').textContent='新增 Provider';
+  resetPresetUi();
+};
+$('btnPDelete').onclick = () => { if (S.selProvider) { if (confirm('删除 Provider 会连带删除其下全部模型, 确定吗?')) host('provider.remove', { id: S.selProvider }); } else toast('请先在列表中点击选择', false); };
+function renderProviders(list) {
+  S.providers = list || [];
+  const tb = $('pBody'); tb.innerHTML = '';
+  S.providers.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.className = p.id === S.selProvider ? 'sel' : '';
+    tr.innerHTML = '<td>' + esc(p.id) + '</td><td>' + esc(p.displayName) + '</td><td class="muted">' + esc(p.kind) +
+      '</td><td class="muted">' + esc(p.baseUrl) + '</td>' +
+      '<td>' + (p.enabled ? '<span class="ok">已启用</span>' : '<span class="muted">已停用</span>') + '</td><td></td>';
+    tr.onclick = () => {
+      S.selProvider = p.id;
+      $('pId').value = p.id; $('pName').value = p.displayName; $('pKind').value = p.kind;
+      $('pBase').value = p.baseUrl; $('pEnv').value = p.envVar;
+      $('pKey').value = '';            // 密文不出现在表单, 留空=保持原 Key
+      $('pFormTitle').textContent = '编辑 Provider: ' + p.id;
+      resetPresetUi();
+      renderProviders(S.providers);
+    };
+    const tg = document.createElement('button');
+    tg.className = 'btn small'; tg.textContent = p.enabled ? '停用' : '启用';
+    tg.onclick = ev => { ev.stopPropagation(); host('provider.toggle', { id: p.id }); };
+    tr.lastChild.appendChild(tg);
+    tb.appendChild(tr);
+  });
+  const fs = $('mFilter'), fp = $('mProvider');
+  const cur = fs.value;
+  fs.innerHTML = '<option value="">全部 Provider</option>';
+  fp.innerHTML = '';
+  S.providers.forEach(p => {
+    fs.add(new Option(p.displayName + ' (' + p.id + ')', p.id));
+    fp.add(new Option(p.displayName + ' (' + p.id + ')', p.id));
+  });
+  fs.value = cur;
+}
+
+// ============ 模型 ============
+$('mFilter').onchange = renderModelTable;
+$('btnMSave').onclick = () => {
+  const id = $('mId').value.trim();
+  if (!id) return toast('模型 ID 不能为空', false);
+  const provId = $('mProvider').value;
+  if (!provId) return toast('请先在右上选择归属 Provider', false);
+  const isUpdate = S.models.some(m => m.id === id);
+  const old = isUpdate ? S.models.find(m => m.id === id) : null;
+  const params = {};
+  if ($('mTemp').value) params.temperature = parseFloat($('mTemp').value);
+  if ($('mMax').value) params.maxTokens = parseInt($('mMax').value);
+  if ($('mCtx').value) params.contextWindow = parseInt($('mCtx').value);
+  const m = {
+    id, providerId: provId,
+    upstreamId: $('mUp').value.trim() || id,
+    displayName: $('mName').value.trim() || id,
+    params,
+    supportsTools: old ? old.supportsTools : true,
+    enabled: old ? old.enabled : true,
+    isDefault: old ? old.isDefault : false,
+    addedAt: old ? old.addedAt : new Date().toISOString().slice(0,10)
+  };
+  host('model.save', Object.assign({ isUpdate }, m));
+};
+$('btnMClear').onclick = () => { $('mId').value=$('mUp').value=$('mName').value=$('mTemp').value=$('mMax').value=$('mCtx').value=''; S.selModel=null; $('mFormTitle').textContent='新增模型'; };
+$('btnMDelete').onclick = () => { if (S.selModel) { if (confirm('删除模型 ' + S.selModel + '?')) host('model.remove', { id: S.selModel }); } else toast('请先点击选择模型', false); };
+$('btnMDefault').onclick = () => { if (S.selModel) host('model.default', { id: S.selModel }); else toast('请先点击选择模型', false); };
+function renderModels(list) { S.models = list || []; renderModelTable(); }
+function renderModelTable() {
+  const f = $('mFilter').value;
+  const tb = $('mBody'); tb.innerHTML = '';
+  S.models.filter(m => !f || m.providerId === f).forEach(m => {
+    const tr = document.createElement('tr');
+    tr.className = m.id === S.selModel ? 'sel' : '';
+    const params = m.params ? Object.entries(m.params).map(([k,v]) => k+'='+v).join(' ') : '';
+    tr.innerHTML = '<td>' + esc(m.id) + '</td><td class="muted">' + esc(m.upstreamId) + '</td>' +
+      '<td>' + esc(m.displayName) + '</td>' +
+      '<td>' + (m.isDefault ? '<span class="ok">★ 默认</span>' : '') + '</td>' +
+      '<td class="muted">' + esc(params) + '</td><td></td>';
+    tr.onclick = () => {
+      S.selModel = m.id;
+      $('mId').value = m.id; $('mUp').value = m.upstreamId; $('mName').value = m.displayName;
+      $('mProvider').value = m.providerId;
+      $('mTemp').value = m.params && m.params.temperature != null ? m.params.temperature : '';
+      $('mMax').value = m.params && m.params.maxTokens != null ? m.params.maxTokens : '';
+      $('mCtx').value = m.params && m.params.contextWindow != null ? m.params.contextWindow : '';
+      $('mFormTitle').textContent = '编辑模型: ' + m.id;
+      renderModelTable();
+    };
+    tb.appendChild(tr);
+  });
+  if (!tb.children.length) tb.innerHTML = '<tr><td colspan="6" class="muted">暂无模型。先在 Provider 页添加供应商。</td></tr>';
+}
+
+// ============ 插件 ============
+$('btnPluginRefresh').onclick = () => host('plugin.list');
+$('btnPluginInstall').onclick = () => host('app.pickFile', { purpose: 'pluginInstall' });
+
+// 概览页「插件快捷」卡片 (HSPP v1.3): 控件由插件声明, 不进插件页即可操作
+function hostSwitchState(pid, aid, def) {
+  const v = S.pluginSwitches && S.pluginSwitches[pid] && S.pluginSwitches[pid][aid];
+  return v === undefined ? !!def : !!v;
+}
+function renderQuickCard() {
+  const card = $('quickCard'), box = $('quickBody');
+  if (!card || !box) return;
+  const plugs = (S.plugins || []).filter(p => p.loaded && p.quick !== false &&
+    (p.uiEntries || []).some(u => {
+      try { return (JSON.parse(u.actions || '[]') || []).some(a => a.quick !== false); }
+      catch (_) { return false; }
+    }));
+  if (!plugs.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  box.innerHTML = '';
+  plugs.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'row'; row.style.marginBottom = '6px'; row.style.flexWrap = 'wrap';
+    const name = document.createElement('b');
+    name.style.cssText = 'width:86px;font-size:13px;flex:none';
+    name.textContent = p.name; name.title = p.id;
+    row.appendChild(name);
+    (p.uiEntries || []).forEach(u => {
+      let acts = [];
+      try { acts = JSON.parse(u.actions || '[]'); } catch (_) {}
+      acts.filter(a => a.quick !== false).forEach(a => {
+        if (a.type === 'switch') {
+          const lb = document.createElement('label'); lb.className = 'sw';
+          lb.innerHTML = '<input type="checkbox"' + (hostSwitchState(p.id, a.id, a.default) ? ' checked' : '') +
+            '><span class="track"></span>';
+          lb.appendChild(document.createTextNode(a.label || a.id));
+          lb.querySelector('input').onchange = ev =>
+            host('plugin.switch', { pluginId: p.id, actionId: a.id, value: ev.target.checked, default: !!a.default });
+          row.appendChild(lb);
+        } else {
+          const b = document.createElement('button');
+          b.className = 'btn small'; b.textContent = a.label || a.id;
+          b.dataset.p = p.id; b.dataset.a = a.id;
+          if (a.confirm) b.dataset.c = a.confirm;
+          b.onclick = () => {
+            if (b.dataset.c && !confirm(b.dataset.c)) return;
+            runPluginAction(b, p.id, a.id);
+          };
+          row.appendChild(b);
+        }
+      });
+    });
+    box.appendChild(row);
+  });
+}
+
+function renderPlugins(list) {
+  const box = $('pluginList'); box.innerHTML = '';
+  if (!(list||[]).length) { box.innerHTML = '<div class="muted" style="padding:14px 0">未发现插件。将插件目录放入 便携包根/plugin/ 后重新扫描。</div>'; return; }
+    list.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'card'; card.style.marginBottom = '10px';
+      let html = '<div class="row" style="margin-bottom:6px"><b>' + esc(p.name) + '</b> <span class="muted">v' + esc(p.version) + '</span>' +
+        (p.author ? '<span class="muted">· ' + esc(p.author) + '</span>' : '') +
+        '<span class="badge ' + (p.loaded ? 'running' : 'failed') + '">' +
+        (p.loaded ? '已加载' : '加载失败') + '</span>' +
+        (!p.enabled ? '<span class="badge stopped">已停用</span>' : '') + '</div>' +
+        '<div class="muted">' + esc(p.description || '') + '</div>' +
+        (p.loadError ? '<div class="red" style="margin-top:4px;font-size:12px">加载失败: ' + esc(p.loadError) + '</div>' : '');
+    (p.uiEntries||[]).forEach(u => {
+      html += '<div style="margin-top:8px"><b style="font-size:12px">' + esc(u.title) + '</b>';
+      let acts = [];
+      try { acts = JSON.parse(u.actions || '[]'); } catch (e) {}
+      acts.forEach(a => {
+        html += ' <button class="btn small" data-p="' + esc(p.id) + '" data-a="' + esc(a.id) + '"' +
+                (a.confirm ? ' data-c="' + esc(a.confirm) + '"' : '') + '>' + esc(a.label || a.id) + '</button>';
+      });
+      html += '</div>';
+    });
+    html += scanListBox(p.id);       // HSPP v1.4: 动作回传 checklist 时渲染勾选列表
+    card.innerHTML = html;
+    const bar = document.createElement('div');
+    bar.className = 'row'; bar.style.marginTop = '10px';
+    const tg = document.createElement('button');
+    tg.className = 'btn small'; tg.textContent = p.enabled ? '停用' : '启用';
+    tg.onclick = () => host('plugin.toggle', { id: p.id, enabled: p.enabled });
+    const sb = document.createElement('button');
+    sb.className = 'btn small'; sb.textContent = '侧边栏: ' + (p.sidebarEnabled === false ? '关' : '开');
+    sb.title = '开关该插件在左侧边栏的入口 (插件保持运行)';
+    sb.onclick = () => host('plugin.sidebar', { id: p.id, visible: p.sidebarEnabled === false });
+    const del = document.createElement('button');
+    del.className = 'btn small danger'; del.textContent = '删除';
+    del.onclick = () => { if (confirm('删除插件 ' + p.name + '? 将移除其目录。')) host('plugin.remove', { id: p.id }); };
+    bar.appendChild(tg); bar.appendChild(sb); bar.appendChild(del);
+    card.appendChild(bar);
+    box.appendChild(card);
+  });
+  wirePluginActionButtons(box);   // 动作按钮 (arg:"checklist" 的动作回传勾选类别)
+  renderCleanupListForAll();      // 卡片重建后恢复已有扫描清单
+  renderPluginNav(list);   // 重建插件侧边栏入口 (HSPP v1.2)
+}
+
+// ============ 设置 ============
+$('btnSSave').onclick = () => {
+  if (!S.settings) return;
+  const s = S.settings;
+  s.network.mode = parseInt($('sProxyMode').value);
+  s.network.host = $('sProxyHost').value;
+  s.network.port = parseInt($('sProxyPort').value) || 0;
+  s.network.githubMirror = $('sMirror').value.trim();
+  s.runtime.webUiPort = parseInt($('sPort').value) || s.runtime.webUiPort;
+  s.runtime.updateChannel = $('sChannel').value;
+  s.runtime.hermesRoot = $('sRoot').value.trim() || '.';
+  s.runtime.backupKeepCount = parseInt($('sBackup').value) || 3;
+  s.runtime.autoCheckUpdate = $('sAutoCheck').checked;
+  s.runtime.launchOnStart = $('sLaunchOn').checked;
+  if (!s.dsh) s.dsh = {};
+  s.dsh.webUiPort = parseInt($('sDshPort').value) || s.dsh.webUiPort;
+  s.dsh.launchOnStart = $('sDshLaunch').checked;
+  host('settings.save', { settings: s });
+};
+function applySettings(e) {
+  S.settings = e.settings; S.rootState = e.rootState; S.coreReady = e.coreReady;
+  const n = e.settings.network, r = e.settings.runtime;
+  const dh = e.settings.dsh || { webUiPort: 3080, launchOnStart: false };
+  $('sProxyMode').value = n.mode; $('sProxyHost').value = n.host || '';
+  $('sProxyPort').value = n.port || ''; $('sMirror').value = n.githubMirror || '';
+  $('sPort').value = r.webUiPort; $('sChannel').value = r.updateChannel;
+  $('sRoot').value = r.hermesRoot || '.'; $('sBackup').value = r.backupKeepCount;
+  $('sAutoCheck').checked = !!r.autoCheckUpdate; $('sLaunchOn').checked = !!r.launchOnStart;
+  $('sDshPort').value = dh.webUiPort; $('sDshLaunch').checked = !!dh.launchOnStart;
+  $('bTarget').placeholder = '默认 = .\\Hermes (相对便携包根)';
+  if (!$('bTarget').value) $('bTarget').value = '.\\Hermes';
+  $('oEnv').textContent = '数据根: ' + e.root + ' · 端口: ' + r.webUiPort + ' · 通道: ' + r.updateChannel +
+    ' · 模式: ' + (e.rootState === 'full' ? '完整' : '待构建');
+  applyLocks();
+}
+
+$('btnProxyTest').onclick = () => {
+  const mode = parseInt($('sProxyMode').value);
+  const cfg = { network: { mode, host: $('sProxyHost').value.trim(), port: parseInt($('sProxyPort').value) || 0 } };
+  $('btnProxyTest').disabled = true;
+  $('btnProxyTest').textContent = '测试中...';
+  host('net.testProxy', { settings: cfg });
+};
+function proxyTestDone(ok) {
+  $('btnProxyTest').disabled = false;
+  $('btnProxyTest').textContent = '测试代理';
+}
+// ============ 日志 ============
+$('btnLRefresh').onclick = () => host('log.query', { level: $('lLevel').value, keyword: $('lKeyword').value });
+$('lKeyword').onkeydown = ev => { if (ev.key === 'Enter') $('btnLRefresh').click(); };
+$('btnLExport').onclick = () => host('log.export');
+function renderLogs(entries) {
+  const box = $('logBox');
+  box.innerHTML = (entries||[]).map(e =>
+    '<div><span class="muted">[' + esc(e.ts) + ']</span> <span class="lv-' + e.level + '">[' + e.level + ']</span> ' + esc(e.text) + '</div>'
+  ).join('') || '<span class="muted">暂无日志</span>';
+  box.scrollTop = box.scrollHeight;
+}
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ============ 启动序列 ============
+host('settings.get');
+host('plugin.list');
+setTimeout(() => {   // settings 就绪后其余按需拉取
+  host('update.scanLocal', { channel: (S.settings && S.settings.runtime.updateChannel) || 'stable' });
+  host('agent.list'); host('provider.presets'); host('provider.list'); host('model.list'); host('preflight.run');
+  host('log.query', { level: 'all', keyword: '', limit: 300 });
+}, 400);
+</script>
+</body>
+</html>

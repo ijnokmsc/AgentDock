@@ -1,0 +1,2 @@
+pid=9236 tid=29388 2026-09-20 04:21:53.832 ALARM hermes_hello.exe logger "-----------------  log4z thread started!   ----------------------------" LogerManager::run (log4z.cpp):1421
+pid=9236 tid=29388 2026-09-20 04:21:53.832 ALARM hermes_hello.exe logger " name=hermes_hello path=./log/ level=2 display=0" LogerManager::run (log4z.cpp):1429
